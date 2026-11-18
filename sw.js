@@ -1,4 +1,4 @@
-const CACHE_NAME = "scout-scanner-v1";
+const CACHE_NAME = "scout-scanner-v2";
 
 const APP_FILES = [
   "./",
@@ -15,13 +15,16 @@ self.addEventListener("install", event => {
 
 self.addEventListener("activate", event => {
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(
+    caches.keys()
+      .then(keys => Promise.all(
         keys
-          .filter(key => key.startsWith("scout-scanner-") && key !== CACHE_NAME)
+          .filter(key =>
+            key.startsWith("scout-scanner-") &&
+            key !== CACHE_NAME
+          )
           .map(key => caches.delete(key))
-      )
-    ).then(() => self.clients.claim())
+      ))
+      .then(() => self.clients.claim())
   );
 });
 
@@ -32,17 +35,44 @@ self.addEventListener("fetch", event => {
 
   const url = new URL(request.url);
 
-  const isAppFile = url.origin === self.location.origin;
+  const isOurPage = url.origin === self.location.origin;
   const isQRLibrary = url.hostname === "cdn.jsdelivr.net";
 
-  if (!isAppFile && !isQRLibrary) return;
+  if (isOurPage) {
+    event.respondWith(
+      fetch(request)
+        .then(response => {
+          if (response && response.ok) {
+            const copy = response.clone();
 
-  event.respondWith(
-    caches.match(request).then(cached => {
-      if (cached) return cached;
+            caches.open(CACHE_NAME).then(cache => {
+              cache.put(request, copy);
+            });
+          }
 
-      return fetch(request).then(response => {
-        if (response && (response.ok || response.type === "opaque")) {
+          return response;
+        })
+        .catch(async () => {
+          const cached = await caches.match(request);
+
+          if (cached) return cached;
+
+          if (request.mode === "navigate") {
+            return caches.match("./index.html");
+          }
+
+          return Response.error();
+        })
+    );
+
+  } else if (isQRLibrary) {
+    event.respondWith(
+      caches.match(request).then(async cached => {
+        if (cached) return cached;
+
+        const response = await fetch(request);
+
+        if (response && response.ok) {
           const copy = response.clone();
 
           caches.open(CACHE_NAME).then(cache => {
@@ -51,7 +81,7 @@ self.addEventListener("fetch", event => {
         }
 
         return response;
-      });
-    })
-  );
+      })
+    );
+  }
 });
