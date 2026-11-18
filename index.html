@@ -3,609 +3,240 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-
+  <meta name="theme-color" content="#8b1a1a">
   <title>SCOUT Live QR Scanner</title>
 
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 
   <style>
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
-      padding: 20px 15px;
-      background: #f5f3f1;
-      color: #292525;
+      padding: 20px;
       font-family: Arial, sans-serif;
+      background: #f5f3f1;
+      color: #333;
+      text-align: center;
     }
 
     .container {
-      max-width: 500px;
-      margin: 0 auto;
-    }
-
-    .header {
-      text-align: center;
-      padding: 20px 0;
-    }
-
-    .logo {
-      width: 65px;
-      height: 65px;
-      border-radius: 18px;
-      background: #8b1a1a;
-      color: white;
-      font-size: 28px;
-      font-weight: bold;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: auto;
-    }
-
-    h1 {
-      color: #8b1a1a;
-      margin: 12px 0 5px;
-      font-size: 25px;
-    }
-
-    .subtitle {
-      color: #777;
-      font-size: 14px;
-    }
-
-    .card {
+      max-width: 480px;
+      margin: 25px auto;
       background: white;
+      padding: 22px;
       border-radius: 16px;
-      padding: 20px;
-      margin-bottom: 16px;
-      box-shadow: 0 3px 12px rgba(0,0,0,.05);
+      box-shadow: 0 3px 15px #0001;
     }
 
-    h2 {
-      color: #8b1a1a;
-      font-size: 19px;
-      margin: 0 0 15px;
-    }
-
-    .camera-box {
-      background: #171717;
-      width: 100%;
-      min-height: 260px;
-      border-radius: 12px;
-      overflow: hidden;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      position: relative;
-    }
-
-    video {
-      display: block;
-      width: 100%;
-      height: auto;
-      max-height: 450px;
-      object-fit: cover;
-    }
-
-    .placeholder {
-      color: white;
-      text-align: center;
-      padding: 25px;
-      line-height: 1.6;
-    }
+    h2 { color: #8b1a1a; }
 
     button {
       width: 100%;
       padding: 14px;
-      margin-top: 14px;
-      border: none;
+      margin-top: 12px;
+      border: 0;
       border-radius: 9px;
       background: #8b1a1a;
       color: white;
-      font-size: 15px;
+      font-size: 16px;
       font-weight: bold;
-      cursor: pointer;
     }
 
     button:disabled {
       opacity: .5;
-      cursor: not-allowed;
     }
 
-    button.secondary {
-      background: #eee9e6;
-      color: #8b1a1a;
-    }
-
-    .message {
-      display: none;
-      padding: 12px;
-      border-radius: 9px;
-      margin-top: 13px;
-      font-size: 14px;
-      line-height: 1.5;
-    }
-
-    .message.info {
-      display: block;
-      background: #f1eeeb;
-      color: #444;
-    }
-
-    .message.error {
-      display: block;
-      background: #fff0ef;
-      color: #b42318;
-    }
-
-    .message.success {
-      display: block;
-      background: #eaf7ef;
-      color: #218653;
-    }
-
-    .result {
-      display: none;
-      text-align: center;
-      padding: 18px;
-      background: #eaf7ef;
-      border-radius: 12px;
+    video {
+      width: 100%;
       margin-top: 15px;
+      border-radius: 10px;
+      background: #222;
     }
 
-    .result-label {
-      color: #218653;
-      font-size: 13px;
-    }
-
-    .result-id {
-      color: #218653;
-      font-size: 27px;
-      font-weight: bold;
-      margin: 10px 0;
+    #result {
+      margin-top: 18px;
+      padding: 15px;
+      background: #f5f3f1;
+      border-radius: 9px;
       overflow-wrap: anywhere;
     }
 
-    .hint {
+    .status {
       font-size: 13px;
-      color: #777;
-      line-height: 1.6;
+      color: #666;
       margin-top: 12px;
     }
 
-    .footer {
-      text-align: center;
-      color: #888;
-      font-size: 12px;
-      margin: 20px 0;
-    }
-
-    .hidden {
-      display: none !important;
-    }
+    .success { color: #187a39; font-weight: bold; }
+    .error { color: #b3261e; }
   </style>
 </head>
 
 <body>
+  <div class="container">
+    <h2>SCOUT QR Scanner</h2>
+    <p>Point the camera at the participant's QR code.</p>
 
-<div class="container">
+    <div id="connection" class="status">Checking connection...</div>
 
-  <div class="header">
-    <div class="logo">S</div>
-    <h1>SCOUT QR Scanner</h1>
-    <div class="subtitle">
-      Live Event Check-in Scanner
-    </div>
+    <video id="video" playsinline muted></video>
+    <canvas id="canvas" hidden></canvas>
+
+    <button id="startBtn" onclick="startScanner()">Start Live Scanner</button>
+    <button id="stopBtn" onclick="stopScanner()" disabled>Stop Scanner</button>
+
+    <div id="result">Waiting for QR code...</div>
   </div>
 
-  <div class="card">
+  <script>
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    const resultBox = document.getElementById("result");
+    const startBtn = document.getElementById("startBtn");
+    const stopBtn = document.getElementById("stopBtn");
+    const connection = document.getElementById("connection");
 
-    <h2>Scan Participant QR</h2>
+    let stream = null;
+    let scanning = false;
+    let animationFrame = null;
+    let lastScanned = "";
 
-    <div class="camera-box">
-
-      <video
-        id="camera"
-        playsinline
-        muted
-        class="hidden">
-      </video>
-
-      <div id="placeholder" class="placeholder">
-        📷
-        <br><br>
-        Camera is not running
-      </div>
-
-    </div>
-
-    <button id="startBtn" onclick="startScanner()">
-      Start Live Scanner
-    </button>
-
-    <button
-      id="stopBtn"
-      class="secondary hidden"
-      onclick="stopScanner()">
-      Stop Camera
-    </button>
-
-    <div id="message" class="message"></div>
-
-    <div class="hint">
-      Point the camera at the participant QR code.
-      Keep the QR code inside the camera view.
-      The system will detect it automatically.
-    </div>
-
-    <div id="result" class="result">
-
-      <div class="result-label">
-        QR Code Detected
-      </div>
-
-      <div id="resultId" class="result-id"></div>
-
-      <div id="resultText">
-        Sending participant ID...
-      </div>
-
-      <button
-        id="copyBtn"
-        class="secondary hidden"
-        onclick="copyParticipantId()">
-        Copy Participant ID
-      </button>
-
-    </div>
-
-  </div>
-
-  <div class="footer">
-    SCOUT Registration & Check-in System
-  </div>
-
-</div>
-
-<script>
-
-  let stream = null;
-  let scanning = false;
-  let animationFrame = null;
-  let detectedId = "";
-
-  const video = document.getElementById("camera");
-
-  const canvas = document.createElement("canvas");
-
-  const context = canvas.getContext("2d", {
-    willReadFrequently: true
-  });
-
-  function showMessage(message, type) {
-
-    const el = document.getElementById("message");
-
-    el.textContent = message;
-    el.className = "message " + type;
-
-  }
-
-  function hideMessage() {
-
-    const el = document.getElementById("message");
-
-    el.textContent = "";
-    el.className = "message";
-
-  }
-
-  async function startScanner() {
-
-    hideMessage();
-
-    document.getElementById("result").style.display = "none";
-
-    if (typeof jsQR === "undefined") {
-
-      showMessage(
-        "QR scanner library could not load. Check your internet connection.",
-        "error"
-      );
-
-      return;
-
+    function updateConnection() {
+      connection.textContent = navigator.onLine
+        ? "Internet connection: Online"
+        : "Internet connection: Offline — QR scanning is available";
     }
 
-    if (
-      !navigator.mediaDevices ||
-      !navigator.mediaDevices.getUserMedia
-    ) {
+    window.addEventListener("online", updateConnection);
+    window.addEventListener("offline", updateConnection);
+    updateConnection();
 
-      showMessage(
-        "Camera is not supported here. Open this page using HTTPS in Chrome.",
-        "error"
-      );
-
-      return;
-
-    }
-
-    try {
-
-      stream = await navigator.mediaDevices.getUserMedia({
-
-        audio: false,
-
-        video: {
-          facingMode: {
-            ideal: "environment"
-          },
-
-          width: {
-            ideal: 1280
-          },
-
-          height: {
-            ideal: 720
-          }
-
-        }
-
-      });
-
-      video.srcObject = stream;
-
-      video.classList.remove("hidden");
-
-      document
-        .getElementById("placeholder")
-        .classList.add("hidden");
-
-      await video.play();
-
-      scanning = true;
-
-      document
-        .getElementById("startBtn")
-        .classList.add("hidden");
-
-      document
-        .getElementById("stopBtn")
-        .classList.remove("hidden");
-
-      showMessage(
-        "Camera is running. Point it at a participant QR code.",
-        "info"
-      );
-
-      scanFrame();
-
-    } catch (error) {
-
-      stopScanner();
-
-      let message = "Could not open the camera.";
-
-      if (error.name === "NotAllowedError") {
-
-        message =
-          "Camera permission denied. Allow camera access for this website.";
-
-      } else if (error.name === "NotFoundError") {
-
-        message =
-          "No camera was found on this device.";
-
-      } else if (error.name === "NotReadableError") {
-
-        message =
-          "Camera may be in use by another application.";
-
-      } else if (error.name === "OverconstrainedError") {
-
-        message =
-          "The requested camera settings are not supported.";
-
+    async function startScanner() {
+      if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+        resultBox.innerHTML =
+          '<span class="error">Camera requires a secure HTTPS connection.</span>';
+        return;
       }
 
-      showMessage(message, "error");
-
-    }
-
-  }
-
-  function scanFrame() {
-
-    if (!scanning) return;
-
-    if (video.readyState === video.HAVE_ENOUGH_DATA) {
-
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-
-      context.drawImage(
-        video,
-        0,
-        0,
-        canvas.width,
-        canvas.height
-      );
-
-      const imageData = context.getImageData(
-        0,
-        0,
-        canvas.width,
-        canvas.height
-      );
-
-      const code = jsQR(
-        imageData.data,
-        imageData.width,
-        imageData.height,
-        {
-          inversionAttempts: "attemptBoth"
-        }
-      );
-
-      if (code && code.data) {
-
-        const id = code.data.trim();
-
-        // Accept SCOUT participant IDs only.
-        if (/^SC-\d+$/i.test(id)) {
-
-          handleDetectedQR(id);
-
-          return;
-
-        }
-
+      if (typeof window.jsQR !== "function") {
+        resultBox.innerHTML =
+          '<span class="error">QR library is not loaded. Connect to the internet and reopen the page.</span>';
+        return;
       }
-
-    }
-
-    animationFrame = requestAnimationFrame(scanFrame);
-
-  }
-
-  function handleDetectedQR(id) {
-
-    if (!scanning) return;
-
-    detectedId = id;
-
-    stopScanner();
-
-    document.getElementById("result").style.display = "block";
-
-    document.getElementById("resultId").textContent = id;
-
-    showMessage(
-      "QR code detected successfully.",
-      "success"
-    );
-
-    sendToParent(id);
-
-  }
-
-  function sendToParent(id) {
-
-    const resultText =
-      document.getElementById("resultText");
-
-    const copyBtn =
-      document.getElementById("copyBtn");
-
-    if (window.opener && !window.opener.closed) {
 
       try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" } },
+          audio: false
+        });
 
-        window.opener.postMessage(
-          {
-            type: "SCOUT_QR_SCANNED",
-            participantId: id
-          },
-          "*"
-        );
+        video.srcObject = stream;
+        await video.play();
 
-        resultText.textContent =
-          "Participant ID sent to SCOUT Check-in.";
-
-        setTimeout(function() {
-          window.close();
-        }, 900);
+        scanning = true;
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+        resultBox.textContent = "Scanning...";
+        scanFrame();
 
       } catch (error) {
+        resultBox.innerHTML =
+          '<span class="error">Could not open camera. Please allow camera permission.</span>';
+      }
+    }
 
-        resultText.textContent =
-          "Could not send the ID automatically. Copy it instead.";
+    function scanFrame() {
+      if (!scanning) return;
 
-        copyBtn.classList.remove("hidden");
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
 
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        const imageData = ctx.getImageData(
+          0, 0, canvas.width, canvas.height
+        );
+
+        const code = window.jsQR(
+          imageData.data,
+          imageData.width,
+          imageData.height,
+          { inversionAttempts: "dontInvert" }
+        );
+
+        if (code && code.data) {
+          const id = code.data.trim();
+
+          if (/^SC-\d+$/i.test(id) && id !== lastScanned) {
+            lastScanned = id;
+            handleScannedID(id);
+            return;
+          }
+        }
       }
 
-    } else {
-
-      resultText.textContent =
-        "Scanner is working. Opened independently, so copy the ID to use it.";
-
-      copyBtn.classList.remove("hidden");
-
+      animationFrame = requestAnimationFrame(scanFrame);
     }
 
-  }
+    function handleScannedID(id) {
+      scanning = false;
 
-  async function copyParticipantId() {
+      resultBox.innerHTML =
+        '<div class="success">QR Code detected!</div><br>' +
+        '<strong>' + id + '</strong>';
 
-    if (!detectedId) return;
+      stopCamera();
 
-    try {
+      if (window.opener && !window.opener.closed) {
+        window.opener.postMessage({
+          type: "SCOUT_QR_SCANNED",
+          participantId: id
+        }, "https://scout-checkin.github.io");
 
-      await navigator.clipboard.writeText(detectedId);
-
-      showMessage(
-        "Participant ID copied.",
-        "success"
-      );
-
-    } catch (error) {
-
-      showMessage(
-        "Please select and copy the ID manually.",
-        "info"
-      );
-
+        setTimeout(() => window.close(), 500);
+      } else {
+        resultBox.innerHTML +=
+          "<p>Scanner opened independently. Copy this ID to the Check-in page.</p>";
+      }
     }
 
-  }
+    function stopCamera() {
+      scanning = false;
 
-  function stopScanner() {
+      if (animationFrame) {
+        cancelAnimationFrame(animationFrame);
+        animationFrame = null;
+      }
 
-    scanning = false;
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
+      }
 
-    if (animationFrame) {
-
-      cancelAnimationFrame(animationFrame);
-      animationFrame = null;
-
+      video.srcObject = null;
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
     }
 
-    if (stream) {
+    function stopScanner() {
+      stopCamera();
+      resultBox.textContent = "Scanner stopped.";
+      lastScanned = "";
+    }
 
-      stream.getTracks().forEach(function(track) {
-        track.stop();
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", async () => {
+        try {
+          await navigator.serviceWorker.register("./sw.js");
+          console.log("SCOUT Offline support registered.");
+        } catch (error) {
+          console.error("Offline registration failed:", error);
+        }
       });
-
-      stream = null;
-
     }
-
-    video.pause();
-    video.srcObject = null;
-    video.classList.add("hidden");
-
-    document
-      .getElementById("placeholder")
-      .classList.remove("hidden");
-
-    document
-      .getElementById("startBtn")
-      .classList.remove("hidden");
-
-    document
-      .getElementById("stopBtn")
-      .classList.add("hidden");
-
-  }
-
-  window.addEventListener("beforeunload", stopScanner);
-
-</script>
-
+  </script>
 </body>
 </html>
