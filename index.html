@@ -43,9 +43,7 @@
       font-weight: bold;
     }
 
-    button:disabled {
-      opacity: .5;
-    }
+    button:disabled { opacity: .5; }
 
     video {
       width: 100%;
@@ -60,6 +58,7 @@
       background: #f5f3f1;
       border-radius: 9px;
       overflow-wrap: anywhere;
+      min-height: 60px;
     }
 
     .status {
@@ -68,31 +67,48 @@
       margin-top: 12px;
     }
 
-    .success { color: #187a39; font-weight: bold; }
+    .success {
+      color: #187a39;
+      font-weight: bold;
+    }
+
     .error { color: #b3261e; }
   </style>
 </head>
 
 <body>
   <div class="container">
+
     <h2>SCOUT QR Scanner</h2>
+
     <p>Point the camera at the participant's QR code.</p>
 
-    <div id="connection" class="status">Checking connection...</div>
+    <div id="connection" class="status">
+      Checking connection...
+    </div>
 
     <video id="video" playsinline muted></video>
     <canvas id="canvas" hidden></canvas>
 
-    <button id="startBtn" onclick="startScanner()">Start Live Scanner</button>
-    <button id="stopBtn" onclick="stopScanner()" disabled>Stop Scanner</button>
+    <button id="startBtn" onclick="startScanner()">
+      Start Live Scanner
+    </button>
 
-    <div id="result">Waiting for QR code...</div>
+    <button id="stopBtn" onclick="stopScanner()" disabled>
+      Stop Scanner
+    </button>
+
+    <div id="result">
+      Waiting for QR code...
+    </div>
+
   </div>
 
   <script>
     const video = document.getElementById("video");
     const canvas = document.getElementById("canvas");
     const ctx = canvas.getContext("2d");
+
     const resultBox = document.getElementById("result");
     const startBtn = document.getElementById("startBtn");
     const stopBtn = document.getElementById("stopBtn");
@@ -106,58 +122,87 @@
     function updateConnection() {
       connection.textContent = navigator.onLine
         ? "Internet connection: Online"
-        : "Internet connection: Offline — QR scanning is available";
+        : "Internet connection: Offline";
     }
 
     window.addEventListener("online", updateConnection);
     window.addEventListener("offline", updateConnection);
+
     updateConnection();
 
     async function startScanner() {
-      if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+
+      if (!window.isSecureContext ||
+          !navigator.mediaDevices?.getUserMedia) {
+
         resultBox.innerHTML =
-          '<span class="error">Camera requires a secure HTTPS connection.</span>';
+          '<span class="error">Camera requires HTTPS.</span>';
+
         return;
       }
 
       if (typeof window.jsQR !== "function") {
+
         resultBox.innerHTML =
-          '<span class="error">QR library is not loaded. Connect to the internet and reopen the page.</span>';
+          '<span class="error">QR library is not loaded. Connect to internet and reopen the page.</span>';
+
         return;
       }
 
       try {
+
+        lastScanned = "";
+
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: "environment" } },
+          video: {
+            facingMode: { ideal: "environment" }
+          },
           audio: false
         });
 
         video.srcObject = stream;
+
         await video.play();
 
         scanning = true;
+
         startBtn.disabled = true;
         stopBtn.disabled = false;
+
         resultBox.textContent = "Scanning...";
+
         scanFrame();
 
       } catch (error) {
+
         resultBox.innerHTML =
           '<span class="error">Could not open camera. Please allow camera permission.</span>';
+
       }
     }
 
     function scanFrame() {
+
       if (!scanning) return;
 
       if (video.readyState === video.HAVE_ENOUGH_DATA) {
+
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
 
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        ctx.drawImage(
+          video,
+          0,
+          0,
+          canvas.width,
+          canvas.height
+        );
 
         const imageData = ctx.getImageData(
-          0, 0, canvas.width, canvas.height
+          0,
+          0,
+          canvas.width,
+          canvas.height
         );
 
         const code = window.jsQR(
@@ -168,11 +213,15 @@
         );
 
         if (code && code.data) {
+
           const id = code.data.trim();
 
           if (/^SC-\d+$/i.test(id) && id !== lastScanned) {
+
             lastScanned = id;
+
             handleScannedID(id);
+
             return;
           }
         }
@@ -182,61 +231,104 @@
     }
 
     function handleScannedID(id) {
-      scanning = false;
 
-      resultBox.innerHTML =
-        '<div class="success">QR Code detected!</div><br>' +
-        '<strong>' + id + '</strong>';
+      scanning = false;
 
       stopCamera();
 
+      resultBox.innerHTML =
+        '<div class="success">QR CODE DETECTED!</div>' +
+        '<p>Participant ID:</p>' +
+        '<strong style="font-size:24px;color:#8b1a1a;">' +
+        id +
+        '</strong>' +
+        '<p>Waiting for Check-in page...</p>';
+
       if (window.opener && !window.opener.closed) {
+
         window.opener.postMessage({
           type: "SCOUT_QR_SCANNED",
           participantId: id
         }, "https://scout-checkin.github.io");
 
-        setTimeout(() => window.close(), 500);
+        resultBox.innerHTML =
+          '<div class="success">QR CODE SENT SUCCESSFULLY!</div>' +
+          '<p>Participant ID:</p>' +
+          '<strong style="font-size:24px;color:#8b1a1a;">' +
+          id +
+          '</strong>' +
+          '<p>Check the original Check-in page.</p>';
+
       } else {
-        resultBox.innerHTML +=
-          "<p>Scanner opened independently. Copy this ID to the Check-in page.</p>";
+
+        resultBox.innerHTML =
+          '<div class="success">QR CODE DETECTED!</div>' +
+          '<p>Participant ID:</p>' +
+          '<strong style="font-size:24px;color:#8b1a1a;">' +
+          id +
+          '</strong>' +
+          '<p>Scanner opened independently. Copy this ID to Check-in page.</p>';
+
       }
+
+      // The scanner page stays open.
+      // No automatic window.close().
     }
 
     function stopCamera() {
+
       scanning = false;
 
       if (animationFrame) {
+
         cancelAnimationFrame(animationFrame);
+
         animationFrame = null;
       }
 
       if (stream) {
+
         stream.getTracks().forEach(track => track.stop());
+
         stream = null;
       }
 
       video.srcObject = null;
+
       startBtn.disabled = false;
       stopBtn.disabled = true;
     }
 
     function stopScanner() {
+
       stopCamera();
-      resultBox.textContent = "Scanner stopped.";
+
       lastScanned = "";
+
+      resultBox.textContent = "Scanner stopped.";
+
     }
 
     if ("serviceWorker" in navigator) {
+
       window.addEventListener("load", async () => {
+
         try {
+
           await navigator.serviceWorker.register("./sw.js");
+
           console.log("SCOUT Offline support registered.");
+
         } catch (error) {
+
           console.error("Offline registration failed:", error);
+
         }
+
       });
+
     }
   </script>
+
 </body>
 </html>
