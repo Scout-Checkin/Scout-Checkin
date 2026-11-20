@@ -85,7 +85,9 @@ button:disabled { opacity:.5; }
   <button class="secondary" onclick="openScanner()">
     Open QR Scanner
   </button>
-
+<button onclick="syncAttendance()">
+    Sync Attendance
+</button>
   <div id="personBox" class="person hidden">
     <h3 id="personName"></h3>
     <div id="personDetails"></div>
@@ -330,7 +332,66 @@ async function refreshCounts() {
       "Local database ready: " + participants.length + " participants.";
   }
 }
+async function syncAttendance() {
+  const email = document.getElementById("email").value.trim();
+  const pin = document.getElementById("pin").value.trim();
 
+  if (!navigator.onLine) {
+    showMessage("Internet connection is required to sync.");
+    return;
+  }
+
+  if (!email || !pin) {
+    showMessage("Enter organizer email and PIN first.");
+    return;
+  }
+
+  try {
+    const records = await getAll("attendance");
+
+    if (!records.length) {
+      showMessage("No pending attendance records.");
+      return;
+    }
+
+    showMessage("Syncing " + records.length + " attendance record(s)...");
+
+    let synced = 0;
+
+    for (const record of records) {
+      const response = await jsonpRequest({
+        action: "sync",
+        email: email,
+        pin: pin,
+        record: JSON.stringify(record)
+      });
+
+      if (!response || response.success !== true) {
+        throw new Error(
+          response && response.error
+            ? response.error
+            : "Sync failed."
+        );
+      }
+
+      await new Promise((resolve, reject) => {
+        const transaction = db.transaction("attendance", "readwrite");
+        transaction.objectStore("attendance").delete(record.recordId);
+        transaction.oncomplete = resolve;
+        transaction.onerror = () => reject(transaction.error);
+      });
+
+      synced++;
+    }
+
+    showMessage("Successfully synced " + synced + " attendance record(s).");
+    await refreshCounts();
+
+  } catch (error) {
+    showMessage("Sync error: " + error.message);
+    await refreshCounts();
+  }
+}
 function openScanner() {
   window.open(
     "https://scout-checkin.github.io/Scout-Checkin/Scanner.html",
