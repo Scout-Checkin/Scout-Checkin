@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SCOUT Live Scanner</title>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;padding:22px;
+  background:#f5f3f1;color:#333;
+  font-family:Arial,sans-serif;text-align:center
+}
+.card{
+  max-width:520px;margin:20px auto;
+  padding:22px;background:white;border-radius:18px
+}
+h2{color:#8b1a1a}
+video{width:100%;border-radius:12px;background:#222}
+button{
+  border:0;border-radius:10px;padding:14px 20px;
+  background:#8b1a1a;color:white;font-size:16px;
+  margin:8px;cursor:pointer
+}
+#result{font-size:20px;font-weight:bold;margin:18px;word-break:break-word}
+#status{color:#666}
+canvas{display:none}
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>SCOUT QR Scanner</h2>
+  <p id="status">Ready to scan</p>
+  <video id="video" playsinline></video>
+  <canvas id="canvas"></canvas>
+  <div id="result"></div>
+  <button id="start">Start Live Scanner</button>
+  <button id="stop">Stop Camera</button>
+</div>
+
+<script>
+const video=document.getElementById('video');
+const canvas=document.getElementById('canvas');
+const ctx=canvas.getContext('2d');
+const statusText=document.getElementById('status');
+const result=document.getElementById('result');
+
+let stream=null;
+let scanning=false;
+let lastId='';
+
+async function startScanner(){
+  try{
+    if(!window.isSecureContext || !navigator.mediaDevices){
+      throw new Error('Open this page using HTTPS.');
+    }
+
+    stream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:{ideal:'environment'}},
+      audio:false
+    });
+
+    video.srcObject=stream;
+    await video.play();
+
+    scanning=true;
+    statusText.textContent='Camera active - Scan participant QR';
+    requestAnimationFrame(scanFrame);
+
+  }catch(error){
+    statusText.textContent='Camera error: '+error.message;
+  }
+}
+
+function scanFrame(){
+  if(!scanning || video.readyState!==video.HAVE_ENOUGH_DATA){
+    if(scanning) requestAnimationFrame(scanFrame);
+    return;
+  }
+
+  canvas.width=video.videoWidth;
+  canvas.height=video.videoHeight;
+  ctx.drawImage(video,0,0,canvas.width,canvas.height);
+
+  const frame=ctx.getImageData(0,0,canvas.width,canvas.height);
+  const code=jsQR(frame.data,frame.width,frame.height);
+
+  if(code){
+    const id=code.data.trim();
+
+    if(/^SC-\d+$/i.test(id) && id!==lastId){
+      lastId=id;
+      result.textContent='Participant ID: '+id;
+      statusText.textContent='QR CODE SENT!';
+
+      if(window.opener){
+        window.opener.postMessage({
+          type:'SCOUT_QR_SCANNED',
+          participantId:id
+        },'https://scout-checkin.github.io');
+      }
+      stopScanner();
+      return;
+    }
+  }
+
+  requestAnimationFrame(scanFrame);
+}
+
+function stopScanner(){
+  scanning=false;
+  if(stream){
+    stream.getTracks().forEach(track=>track.stop());
+    stream=null;
+  }
+}
+
+document.getElementById('start').addEventListener('click',startScanner);
+document.getElementById('stop').addEventListener('click',stopScanner);
+
+window.addEventListener('beforeunload',stopScanner);
+</script>
+</body>
+</html>
