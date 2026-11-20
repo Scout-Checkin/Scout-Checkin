@@ -1,33 +1,55 @@
-const CACHE_NAME = "scout-scanner-v2";
+const CACHE_NAME = "scout-scanner-v3";
 
 const APP_FILES = [
   "./",
-  "./index.html"
+  "./index.html",
+  "./offline.html",
+  "./Scanner.html"
 ];
 
+const QR_LIBRARY =
+  "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js";
+
+// INSTALL
 self.addEventListener("install", event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(APP_FILES))
-      .then(() => self.skipWaiting())
-  );
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+
+    await cache.addAll(APP_FILES);
+
+    // Cache QR library for offline scanning
+    try {
+      const response = await fetch(QR_LIBRARY);
+      if (response.ok) {
+        await cache.put(QR_LIBRARY, response);
+      }
+    } catch (error) {
+      console.log("QR library will be cached on first online use.");
+    }
+
+    await self.skipWaiting();
+  })());
 });
 
+// ACTIVATE
 self.addEventListener("activate", event => {
-  event.waitUntil(
-    caches.keys()
-      .then(keys => Promise.all(
-        keys
-          .filter(key =>
-            key.startsWith("scout-scanner-") &&
-            key !== CACHE_NAME
-          )
-          .map(key => caches.delete(key))
-      ))
-      .then(() => self.clients.claim())
-  );
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+
+    await Promise.all(
+      keys
+        .filter(key =>
+          key.startsWith("scout-scanner-") &&
+          key !== CACHE_NAME
+        )
+        .map(key => caches.delete(key))
+    );
+
+    await self.clients.claim();
+  })());
 });
 
+// FETCH
 self.addEventListener("fetch", event => {
   const request = event.request;
 
@@ -36,52 +58,34 @@ self.addEventListener("fetch", event => {
   const url = new URL(request.url);
 
   const isOurPage = url.origin === self.location.origin;
-  const isQRLibrary = url.hostname === "cdn.jsdelivr.net";
+  const isQRLibrary =
+    url.hostname === "cdn.jsdelivr.net" &&
+    url.pathname.includes("jsqr");
 
-  if (isOurPage) {
-    event.respondWith(
-      fetch(request)
-        .then(response => {
-          if (response && response.ok) {
-            const copy = response.clone();
+  if (isOurPage || isQRLibrary) {
+    event.respondWith((async () => {
+      const cache = await caches.open(CACHE_NAME);
 
-            caches.open(CACHE_NAME).then(cache => {
-              cache.put(request, copy);
-            });
-          }
-
-          return response;
-        })
-        .catch(async () => {
-          const cached = await caches.match(request);
-
-          if (cached) return cached;
-
-          if (request.mode === "navigate") {
-            return caches.match("./index.html");
-          }
-
-          return Response.error();
-        })
-    );
-
-  } else if (isQRLibrary) {
-    event.respondWith(
-      caches.match(request).then(async cached => {
-        if (cached) return cached;
-
+      try {
         const response = await fetch(request);
 
         if (response && response.ok) {
-          const copy = response.clone();
-
-          caches.open(CACHE_NAME).then(cache => {
-            cache.put(request, copy);
-          });
+          await cache.put(request, response.clone());
         }
 
         return response;
-      })
-    );
+      } catch (error) {
+        const cached = await cache.match(request);
+
+        if (cached) return cached;
+
+        if (request.mode === "navigate") {
+          return await cache.match("./offline.html") ||
+                 await cache.match("./index.html");
+        }
+
+        return Response.error();
+      }
+    })());
   }
 });
