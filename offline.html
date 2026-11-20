@@ -3,197 +3,141 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#8b1a1a">
 <title>SCOUT Offline Check-in</title>
 
 <style>
 :root {
-  --burgundy: #8b1a1a;
-  --bg: #f5f3f1;
-  --gray: #666;
+  --burgundy:#8b1a1a;
+  --bg:#f5f3f1;
+  --gray:#666;
 }
-* { box-sizing: border-box; }
+* { box-sizing:border-box; }
 body {
-  margin: 0;
-  padding: 18px;
-  background: var(--bg);
-  color: #292929;
-  font-family: Arial, sans-serif;
+  margin:0;
+  padding:20px;
+  background:var(--bg);
+  font-family:Arial,sans-serif;
+  color:#292929;
 }
-header { text-align: center; padding: 18px 8px; }
-h1 { color: var(--burgundy); margin: 4px; font-size: 26px; }
-header p { color: var(--gray); }
-.card {
-  background: white;
-  border-radius: 14px;
-  padding: 18px;
-  margin: 14px auto;
-  max-width: 520px;
-  box-shadow: 0 2px 10px #0000000d;
+.container {
+  max-width:520px;
+  margin:20px auto;
+  background:white;
+  padding:22px;
+  border-radius:16px;
+  box-shadow:0 3px 15px #00000012;
 }
-input {
-  width: 100%;
-  padding: 13px;
-  margin: 7px 0 12px;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  font-size: 16px;
+h2 { color:var(--burgundy); margin-top:0; }
+input,button {
+  width:100%;
+  padding:14px;
+  margin:8px 0;
+  border-radius:9px;
+  font-size:16px;
 }
+input { border:1px solid #ccc; }
 button {
-  width: 100%;
-  padding: 14px;
-  border: 0;
-  border-radius: 9px;
-  background: var(--burgundy);
-  color: white;
-  font-size: 16px;
-  font-weight: bold;
-  margin: 6px 0;
-  cursor: pointer;
+  border:0;
+  background:var(--burgundy);
+  color:white;
+  font-weight:bold;
+  cursor:pointer;
 }
-button.secondary { background: #666; }
-button:disabled { opacity: .5; }
-.small { font-size: 13px; color: var(--gray); line-height: 1.5; }
-#status {
-  padding: 12px;
-  border-radius: 8px;
-  background: #f1eeee;
-  margin-top: 12px;
-  line-height: 1.5;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+button:disabled { opacity:.5; }
+.secondary { background:#666; }
+.status {
+  background:#f3f0ee;
+  padding:12px;
+  border-radius:9px;
+  margin:12px 0;
+  font-size:14px;
+  overflow-wrap:anywhere;
 }
-#participant { display: none; }
-.detail { padding: 8px 0; border-bottom: 1px solid #eee; }
-.detail b {
-  display: inline-block;
-  min-width: 115px;
-  color: #555;
+.person {
+  border:1px solid #ddd;
+  padding:14px;
+  border-radius:10px;
+  margin-top:15px;
 }
-#queueCount { font-weight: bold; color: var(--burgundy); }
+.small { color:var(--gray); font-size:13px; }
+.hidden { display:none; }
 </style>
 </head>
 
 <body>
+<div class="container">
+  <h2>SCOUT Offline Check-in</h2>
 
-<header>
-  <h1>SCOUT</h1>
-  <p>Offline Registration & Check-in System</p>
-</header>
-
-<section class="card">
-  <h3>Organizer Access & Database</h3>
-
-  <label>Email</label>
-  <input id="email" type="email" placeholder="Organizer email">
-
-  <label>PIN</label>
-  <input id="pin" type="password" inputmode="numeric"
-         placeholder="Organizer PIN">
-
-  <button id="downloadBtn" onclick="downloadDatabase()">
-    Download / Update Database
-  </button>
-
-  <p class="small">
-    Download the participant database while connected to the internet.
-    The saved database remains on this device.
-  </p>
-
-  <div id="status">Opening local database...</div>
-</section>
-
-<section class="card">
-  <h3>Offline Check-in</h3>
-
-  <p class="small">
-    Saved participants: <b id="participantCount">0</b>
-  </p>
-
-  <p class="small">
-    Pending attendance records:
-    <span id="queueCount">0</span>
-  </p>
-
-  <button onclick="openScanner()">Open QR Scanner</button>
-
-  <button class="secondary" onclick="syncAttendance()">
-    Sync Attendance Now
-  </button>
-
-  <div id="participant">
-    <hr>
-    <h3>Participant Details</h3>
-
-    <div class="detail"><b>ID:</b> <span id="pId"></span></div>
-    <div class="detail"><b>Name:</b> <span id="pName"></span></div>
-    <div class="detail"><b>Email:</b> <span id="pEmail"></span></div>
-    <div class="detail"><b>Phone:</b> <span id="pPhone"></span></div>
-    <div class="detail"><b>University:</b> <span id="pUniversity"></span></div>
-    <div class="detail"><b>Faculty:</b> <span id="pFaculty"></span></div>
-    <div class="detail"><b>Academic Year:</b> <span id="pYear"></span></div>
-    <div class="detail"><b>Attendance:</b> <span id="pAttendance"></span></div>
-
-    <button id="checkinBtn" onclick="confirmOfflineCheckIn()">
-      Confirm Attendance
-    </button>
+  <div id="databaseStatus" class="status">
+    Database not connected yet. Connect to the internet and download.
   </div>
 
-  <div id="scanMessage" class="small"></div>
-</section>
+  <label>Organizer Email</label>
+  <input id="email" type="email" placeholder="Enter your email">
 
-<!-- Hidden frame and form for Apps Script communication -->
-<iframe name="apiFrame" id="apiFrame" style="display:none"></iframe>
+  <label>Organizer PIN</label>
+  <input id="pin" type="password" placeholder="Enter your PIN">
 
-<form id="apiForm" method="POST" target="apiFrame"
-  action="https://script.google.com/macros/s/AKfycbx_U6bK4tQ0OKVS9SJOgm6qFkW-__WqYSTl1YoLXSbeWXnyu67GHuJiTI6Eysyhlf8a/exec"
-  style="display:none">
+  <button id="downloadBtn" onclick="downloadDatabase()">
+    Download Database
+  </button>
 
-  <input type="hidden" name="payload" id="apiPayload">
-</form>
+  <button class="secondary" onclick="openScanner()">
+    Open QR Scanner
+  </button>
+
+  <div id="personBox" class="person hidden">
+    <h3 id="personName"></h3>
+    <div id="personDetails"></div>
+    <button onclick="confirmAttendance()">Confirm Check-in</button>
+  </div>
+
+  <div class="status">
+    <div>Saved participants: <b id="participantCount">0</b></div>
+    <div>Pending check-ins: <b id="pendingCount">0</b></div>
+  </div>
+
+  <p class="small">
+    Keep this page available on your phone. Download the database while
+    connected to the internet before using offline check-in.
+  </p>
+
+  <div id="message" class="status">Ready.</div>
+</div>
 
 <script>
-"use strict";
-
 const API_URL =
 "https://script.google.com/macros/s/AKfycbx_U6bK4tQ0OKVS9SJOgm6qFkW-__WqYSTl1YoLXSbeWXnyu67GHuJiTI6Eysyhlf8a/exec";
 
-const SCANNER_URL =
-"https://scout-checkin.github.io/Scout-Checkin/Scanner.html";
-
-const DB_NAME = "SCOUT_OFFLINE_DATABASE";
+const DB_NAME = "SCOUT_OFFLINE_DB";
 const DB_VERSION = 1;
 
-let db = null;
+let db;
 let currentParticipant = null;
-let organizerEmail = localStorage.getItem("scout_organizer_email") || "";
-let organizerName = localStorage.getItem("scout_organizer_name") || "";
-let sessionPIN = "";
+let requestNumber = 0;
 
-let apiCallback = null;
-let apiTimer = null;
-
-
-// ---------------- DATABASE ----------------
+function showMessage(message) {
+  document.getElementById("message").textContent = message;
+}
 
 function openDB() {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
+  return new Promise((resolve,reject) => {
+    const request = indexedDB.open(DB_NAME,DB_VERSION);
 
     request.onupgradeneeded = event => {
       const database = event.target.result;
 
       if (!database.objectStoreNames.contains("participants")) {
-        database.createObjectStore("participants", { keyPath: "id" });
+        database.createObjectStore("participants",{keyPath:"id"});
       }
 
-      if (!database.objectStoreNames.contains("queue")) {
-        database.createObjectStore("queue", { keyPath: "recordId" });
+      if (!database.objectStoreNames.contains("attendance")) {
+        database.createObjectStore("attendance",{keyPath:"recordId"});
       }
     };
 
-    request.onsuccess = event => {
-      db = event.target.result;
+    request.onsuccess = () => {
+      db = request.result;
       resolve(db);
     };
 
@@ -201,525 +145,297 @@ function openDB() {
   });
 }
 
+function storeData(storeName, data) {
+  return new Promise((resolve,reject) => {
+    const transaction = db.transaction(storeName,"readwrite");
+    const store = transaction.objectStore(storeName);
+
+    data.forEach(item => store.put(item));
+
+    transaction.oncomplete = resolve;
+    transaction.onerror = () => reject(transaction.error);
+  });
+}
 
 function getAll(storeName) {
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(storeName, "readonly");
-    const request = tx.objectStore(storeName).getAll();
+  return new Promise((resolve,reject) => {
+    const transaction = db.transaction(storeName,"readonly");
+    const request = transaction.objectStore(storeName).getAll();
 
-    request.onsuccess = () => resolve(request.result || []);
+    request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
 }
 
+function getField(obj, names) {
+  if (!obj || typeof obj !== "object") return "";
 
-function getOne(storeName, key) {
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(storeName, "readonly");
-    const request = tx.objectStore(storeName).get(key);
+  const keys = Object.keys(obj);
 
-    request.onsuccess = () => resolve(request.result || null);
-    request.onerror = () => reject(request.error);
-  });
+  for (const name of names) {
+    const found = keys.find(
+      key => key.toLowerCase().trim() === name.toLowerCase().trim()
+    );
+
+    if (found !== undefined) return obj[found];
+  }
+
+  return "";
 }
 
+function normalizeParticipant(item) {
+  const id = String(getField(item,[
+    "Participant ID","participantId","id","ID"
+  ]) || "").trim();
 
-function saveRecord(storeName, record) {
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(storeName, "readwrite");
-    tx.objectStore(storeName).put(record);
+  if (!id) return null;
 
-    tx.oncomplete = resolve;
-    tx.onerror = () => reject(tx.error);
-  });
+  return {
+    id:id,
+    data:item
+  };
 }
 
+function extractParticipants(response) {
+  let value = response && response.data !== undefined
+    ? response.data : response;
 
-function saveParticipants(participants) {
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction("participants", "readwrite");
-    const store = tx.objectStore("participants");
+  if (Array.isArray(value)) return value;
 
-    store.clear();
+  const possibleKeys = [
+    "participants","data","records","rows","database"
+  ];
 
-    participants.forEach(participant => {
-      store.put(participant);
+  for (const key of possibleKeys) {
+    if (value && Array.isArray(value[key])) {
+      return value[key];
+    }
+  }
+
+  if (value && value.data) {
+    for (const key of possibleKeys) {
+      if (Array.isArray(value.data[key])) return value.data[key];
+    }
+  }
+
+  throw new Error("Participant list was not found in the server response.");
+}
+
+function jsonpRequest(params) {
+  return new Promise((resolve,reject) => {
+    const callbackName = "scoutCallback" + (++requestNumber);
+    const script = document.createElement("script");
+
+    const timeout = setTimeout(() => {
+      cleanup();
+      reject(new Error("Service not responding. Please try again."));
+    },30000);
+
+    function cleanup() {
+      clearTimeout(timeout);
+      delete window[callbackName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+    }
+
+    window[callbackName] = response => {
+      cleanup();
+      resolve(response);
+    };
+
+    const query = new URLSearchParams({
+      api:"jsonp",
+      callback:callbackName,
+      ...params
     });
 
-    tx.oncomplete = resolve;
-    tx.onerror = () => reject(tx.error);
+    script.src = API_URL + "?" + query.toString();
+
+    script.onerror = () => {
+      cleanup();
+      reject(new Error("Could not connect to SCOUT server."));
+    };
+
+    document.body.appendChild(script);
   });
 }
-
-
-function clearQueue() {
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction("queue", "readwrite");
-    tx.objectStore("queue").clear();
-
-    tx.oncomplete = resolve;
-    tx.onerror = () => reject(tx.error);
-  });
-}
-
-
-// ---------------- DISPLAY ----------------
-
-function showStatus(message) {
-  document.getElementById("status").textContent = message;
-}
-
-
-async function refreshCounts() {
-  const participants = await getAll("participants");
-  const queue = await getAll("queue");
-
-  document.getElementById("participantCount").textContent =
-    participants.length;
-
-  document.getElementById("queueCount").textContent =
-    queue.length;
-
-  if (participants.length) {
-    showStatus(
-      "Offline database ready.\nSaved participants: " +
-      participants.length +
-      (organizerName ? "\nOrganizer: " + organizerName : "")
-    );
-  } else {
-    showStatus(
-      "No saved database yet. Connect to the internet and download it."
-    );
-  }
-}
-
-
-// ---------------- APPS SCRIPT BRIDGE ----------------
-
-function apiCall(requestData) {
-  return new Promise((resolve, reject) => {
-
-    if (apiCallback) {
-      reject(new Error("Another request is already running."));
-      return;
-    }
-
-    apiCallback = { resolve, reject };
-
-    document.getElementById("apiPayload").value =
-      JSON.stringify(requestData);
-
-    document.getElementById("apiForm").action = API_URL;
-
-    apiTimer = setTimeout(() => {
-      if (apiCallback) {
-        const callback = apiCallback;
-        apiCallback = null;
-
-        callback.reject(
-          new Error(
-            "Server did not respond. Check the internet and try again."
-          )
-        );
-      }
-    }, 45000);
-
-    document.getElementById("apiForm").submit();
-  });
-}
-
-
-// One listener handles both Apps Script replies and QR scanner messages.
-window.addEventListener("message", async event => {
-
-  const message = event.data;
-
-  // Apps Script response
-  if (message && message.type === "SCOUT_API_RESULT") {
-
-    if (!apiCallback) return;
-
-    clearTimeout(apiTimer);
-
-    const callback = apiCallback;
-    apiCallback = null;
-
-    if (message.payload && message.payload.success) {
-      callback.resolve(message.payload.data);
-    } else {
-      callback.reject(
-        new Error(
-          message.payload?.error || "Server request failed."
-        )
-      );
-    }
-
-    return;
-  }
-
-  // QR scanner response
-  if (event.origin === "https://scout-checkin.github.io") {
-
-    if (!message || message.type !== "SCOUT_QR_SCANNED") {
-      return;
-    }
-
-    const id = String(message.participantId || "").trim();
-
-    if (id) {
-      await findParticipant(id);
-    }
-  }
-});
-
-
-// ---------------- DOWNLOAD DATABASE ----------------
 
 async function downloadDatabase() {
-
   const email = document.getElementById("email").value.trim();
   const pin = document.getElementById("pin").value.trim();
+  const button = document.getElementById("downloadBtn");
 
   if (!email || !pin) {
-    showStatus("Enter organizer email and PIN first.");
+    showMessage("Please enter organizer email and PIN.");
     return;
   }
 
   if (!navigator.onLine) {
-    showStatus("No internet connection. Connect and try again.");
+    showMessage("Internet connection is required to download.");
     return;
   }
 
-  const button = document.getElementById("downloadBtn");
   button.disabled = true;
-
-  showStatus("Connecting and downloading participants...");
+  button.textContent = "Downloading...";
+  showMessage("Connecting to SCOUT server...");
 
   try {
-
-    const response = await apiCall({
-      action: "download",
-      email: email,
-      pin: pin
+    const response = await jsonpRequest({
+      action:"download",
+      email:email,
+      pin:pin
     });
 
-    if (!response || response.success === false) {
-      throw new Error(response?.error || "Download failed.");
+    if (!response || response.success !== true) {
+      throw new Error(response && response.error
+        ? response.error : "Download failed.");
     }
 
-    if (!Array.isArray(response.participants)) {
-      throw new Error("Participant list was not received from the server.");
+    const participants = extractParticipants(response);
+    const normalized = participants
+      .map(normalizeParticipant)
+      .filter(Boolean);
+
+    if (!normalized.length) {
+      throw new Error("No participant records were returned.");
     }
 
-    await saveParticipants(response.participants);
+    await storeData("participants",normalized);
 
-    organizerEmail = email;
-    sessionPIN = pin;
+    document.getElementById("databaseStatus").textContent =
+      "Database downloaded successfully.";
 
-    organizerName =
-      response.organizer?.name ||
-      response.organizer?.organizerName ||
-      "";
-
-    localStorage.setItem("scout_organizer_email", email);
-    localStorage.setItem("scout_organizer_name", organizerName);
-
-    document.getElementById("pin").value = "";
-
-    showStatus(
-      "Database downloaded successfully!\nParticipants: " +
-      response.participants.length
-    );
-
+    showMessage("Database downloaded: " + normalized.length + " participants.");
     await refreshCounts();
 
-  } catch (error) {
-
-    showStatus("Download error:\n" + error.message);
-
+  } catch(error) {
+    showMessage("Error: " + error.message);
   } finally {
     button.disabled = false;
+    button.textContent = "Download Database";
   }
 }
 
+async function refreshCounts() {
+  const participants = await getAll("participants");
+  const attendance = await getAll("attendance");
 
-// ---------------- QR SCANNER ----------------
+  document.getElementById("participantCount").textContent =
+    participants.length;
+
+  document.getElementById("pendingCount").textContent =
+    attendance.length;
+
+  if (participants.length) {
+    document.getElementById("databaseStatus").textContent =
+      "Local database ready: " + participants.length + " participants.";
+  }
+}
 
 function openScanner() {
-
-  const scannerWindow = window.open(SCANNER_URL, "_blank");
-
-  if (!scannerWindow) {
-    document.getElementById("scanMessage").textContent =
-      "Scanner popup blocked. Allow popups and try again.";
-    return;
-  }
-
-  document.getElementById("scanMessage").textContent =
-    "Scanner opened. Scan the participant QR and return here.";
+  window.open(
+    "https://scout-checkin.github.io/Scout-Checkin/Scanner.html",
+    "_blank"
+  );
 }
 
+window.addEventListener("message", async event => {
+  if (event.origin !== "https://scout-checkin.github.io") return;
 
-async function findParticipant(id) {
+  const message = event.data;
 
-  document.getElementById("scanMessage").textContent =
-    "Searching saved database...";
+  if (!message || message.type !== "SCOUT_QR_SCANNED") return;
 
-  document.getElementById("participant").style.display = "none";
+  const participantId = String(message.participantId || "").trim();
 
-  const participant = await getOne("participants", id);
+  if (!participantId) return;
+
+  const participants = await getAll("participants");
+
+  const participant = participants.find(
+    item => item.id.toLowerCase() === participantId.toLowerCase()
+  );
 
   if (!participant) {
-    document.getElementById("scanMessage").textContent =
-      "Participant not found in this device's saved database. Update the database while online.";
+    currentParticipant = null;
+    document.getElementById("personBox").classList.add("hidden");
+    showMessage("Participant not found in the local database. Download the database first.");
     return;
   }
 
   currentParticipant = participant;
 
-  document.getElementById("pId").textContent =
-    participant.id || "";
+  const data = participant.data;
+  const name = getField(data,["Full Name","Name","fullName"]);
 
-  document.getElementById("pName").textContent =
-    participant.name || "";
+  document.getElementById("personName").textContent =
+    name || participant.id;
 
-  document.getElementById("pEmail").textContent =
-    participant.email || "";
+  const details = [
+    ["Participant ID",participant.id],
+    ["Email",getField(data,["Email"])],
+    ["University",getField(data,["University"])],
+    ["Faculty",getField(data,["Faculty"])],
+    ["Academic Year",getField(data,["Academic Year"])]
+  ];
 
-  document.getElementById("pPhone").textContent =
-    participant.phone || "";
+  document.getElementById("personDetails").innerHTML =
+    details.map(item =>
+      "<p><b>" + escapeHTML(item[0]) + ":</b> " +
+      escapeHTML(String(item[1] || "-")) + "</p>"
+    ).join("");
 
-  document.getElementById("pUniversity").textContent =
-    participant.university || "";
+  document.getElementById("personBox").classList.remove("hidden");
+  showMessage("Participant found. Confirm attendance when ready.");
+});
 
-  document.getElementById("pFaculty").textContent =
-    participant.faculty || "";
-
-  document.getElementById("pYear").textContent =
-    participant.academicYear || "";
-
-  document.getElementById("pAttendance").textContent =
-    participant.checkInStatus || "Not checked in";
-
-  document.getElementById("participant").style.display = "block";
-
-  const queue = await getAll("queue");
-
-  const alreadyQueued = queue.some(
-    record => record.participantId === participant.id
-  );
-
-  const alreadyCheckedIn = [
-    "yes", "present", "checked-in", "checked in"
-  ].includes(
-    String(participant.checkInStatus || "").toLowerCase()
-  );
-
-  document.getElementById("checkinBtn").disabled =
-    alreadyQueued || alreadyCheckedIn;
-
-  if (alreadyQueued) {
-    document.getElementById("scanMessage").textContent =
-      "Attendance is already saved on this device and waiting for sync.";
-  } else if (alreadyCheckedIn) {
-    document.getElementById("scanMessage").textContent =
-      "This participant is already marked as checked in in the downloaded database.";
-  } else {
-    document.getElementById("scanMessage").textContent =
-      "Participant found in the saved database.";
-  }
+function escapeHTML(value) {
+  return value.replace(/[&<>"']/g, char => ({
+    "&":"&amp;",
+    "<":"&lt;",
+    ">":"&gt;",
+    '"':"&quot;",
+    "'":"&#39;"
+  })[char]);
 }
 
-
-// ---------------- OFFLINE CHECK-IN ----------------
-
-function getDeviceId() {
-
-  let id = localStorage.getItem("scout_device_id");
-
-  if (!id) {
-    id =
-      "SCOUT-DEVICE-" +
-      Date.now() +
-      "-" +
-      Math.random().toString(36).slice(2, 8);
-
-    localStorage.setItem("scout_device_id", id);
-  }
-
-  return id;
-}
-
-
-async function confirmOfflineCheckIn() {
-
+async function confirmAttendance() {
   if (!currentParticipant) return;
 
-  const queue = await getAll("queue");
-
-  if (queue.some(r => r.participantId === currentParticipant.id)) {
-    document.getElementById("scanMessage").textContent =
-      "Attendance is already saved on this device.";
-    return;
-  }
-
-  const alreadyCheckedIn = [
-    "yes", "present", "checked-in", "checked in"
-  ].includes(
-    String(currentParticipant.checkInStatus || "").toLowerCase()
-  );
-
-  if (alreadyCheckedIn) {
-    document.getElementById("scanMessage").textContent =
-      "Participant is already checked in according to the downloaded database.";
-    return;
-  }
-
   const record = {
-    recordId:
-      "SCOUT-" +
-      Date.now() +
-      "-" +
-      Math.random().toString(36).slice(2, 9),
-
+    recordId: "SCOUT-" + currentParticipant.id + "-" + Date.now(),
     participantId: currentParticipant.id,
-    checkInTime: new Date().toISOString(),
-    deviceId: getDeviceId(),
-    method: "OFFLINE QR"
+    participantName: getField(
+      currentParticipant.data,["Full Name","Name","fullName"]
+    ),
+    organizerEmail:document.getElementById("email").value.trim(),
+    checkInTime:new Date().toISOString(),
+    method:"QR",
+    syncStatus:"PENDING"
   };
 
   try {
-
-    await saveRecord("queue", record);
-
-    currentParticipant.checkInStatus = "Pending Sync";
-
-    document.getElementById("pAttendance").textContent =
-      "Pending Sync";
-
-    document.getElementById("checkinBtn").disabled = true;
-
-    document.getElementById("scanMessage").textContent =
-      "Attendance saved on this device. It is waiting for synchronization.";
-
+    await storeData("attendance",[record]);
+    showMessage("Check-in saved on this device. It is waiting to sync.");
+    document.getElementById("personBox").classList.add("hidden");
+    currentParticipant = null;
     await refreshCounts();
-
-  } catch (error) {
-
-    document.getElementById("scanMessage").textContent =
-      "Could not save attendance: " + error.message;
+  } catch(error) {
+    showMessage("Could not save check-in: " + error.message);
   }
 }
-
-
-// ---------------- SYNC ----------------
-
-async function syncAttendance() {
-
-  if (!navigator.onLine) {
-    showStatus(
-      "No internet connection. Attendance remains saved on this device."
-    );
-    return;
-  }
-
-  const records = await getAll("queue");
-
-  if (!records.length) {
-    showStatus("There are no pending attendance records to sync.");
-    return;
-  }
-
-  const email =
-    organizerEmail ||
-    document.getElementById("email").value.trim();
-
-  let pin =
-    sessionPIN ||
-    document.getElementById("pin").value.trim();
-
-  if (!email) {
-    showStatus("Enter organizer email before syncing.");
-    return;
-  }
-
-  if (!pin) {
-    pin = prompt("Enter your organizer PIN to sync attendance:");
-  }
-
-  if (!pin) {
-    showStatus("Sync cancelled. Records remain saved on this device.");
-    return;
-  }
-
-  showStatus("Syncing " + records.length + " attendance record(s)...");
-
-  try {
-
-    const response = await apiCall({
-      action: "sync",
-      email: email,
-      pin: pin,
-      records: records
-    });
-
-    if (!response || response.success === false) {
-      throw new Error(response?.error || "Sync failed.");
-    }
-
-    // Clear only after a successful server response.
-    await clearQueue();
-
-    sessionPIN = pin;
-
-    showStatus(
-      "Sync request completed successfully.\n" +
-      JSON.stringify(response, null, 2)
-    );
-
-    await refreshCounts();
-
-  } catch (error) {
-
-    showStatus(
-      "Sync error: " + error.message +
-      "\nAttendance records are still saved on this device."
-    );
-  }
-}
-
-
-// ---------------- START ----------------
-
-window.addEventListener("online", () => {
-  document.getElementById("scanMessage").textContent =
-    "Internet connection detected. You can sync pending attendance.";
-});
-
 
 (async function start() {
-
   try {
-
     await openDB();
-
     await refreshCounts();
 
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register(
-        "/Scout-Checkin/sw.js"
-      ).catch(error => {
-        console.log("Service Worker registration:", error);
-      });
+      navigator.serviceWorker.register("./sw.js").catch(() => {});
     }
-
-  } catch (error) {
-
-    showStatus("Local storage error: " + error.message);
+  } catch(error) {
+    showMessage("Local database error: " + error.message);
   }
-
 })();
 </script>
-
 </body>
 </html>
