@@ -85,6 +85,19 @@ button:disabled { opacity:.5; }
   <button class="secondary" onclick="openScanner()">
     Open QR Scanner
   </button>
+  <hr>
+
+<h3>Manual Check-in</h3>
+
+<input
+  id="manualSearch"
+  type="text"
+  placeholder="Enter Participant ID or Email"
+>
+
+<button onclick="manualLookup()">
+  Search Participant
+</button>
 <button onclick="syncAttendance()">
     Sync Attendance
 </button>
@@ -390,6 +403,65 @@ async function syncAttendance() {
   } catch (error) {
     showMessage("Sync error: " + error.message);
     await refreshCounts();
+  }
+}
+  async function manualLookup() {
+  const searchValue = document
+    .getElementById("manualSearch")
+    .value.trim().toLowerCase();
+
+  if (!searchValue) {
+    showMessage("Enter Participant ID or Email.");
+    return;
+  }
+
+  try {
+    const participants = await getAll("participants");
+
+    const participant = participants.find(item => {
+      const email = String(
+        getField(item.data, ["Email"])
+      ).trim().toLowerCase();
+
+      return item.id.toLowerCase() === searchValue ||
+             email === searchValue;
+    });
+
+    if (!participant) {
+      currentParticipant = null;
+      document.getElementById("personBox").classList.add("hidden");
+      showMessage("Participant not found in local database.");
+      return;
+    }
+
+    currentParticipant = participant;
+
+    const data = participant.data;
+
+    document.getElementById("personName").textContent =
+      getField(data, ["Full Name", "Name", "fullName"]) ||
+      participant.id;
+
+    const details = [
+      ["Participant ID", participant.id],
+      ["Email", getField(data, ["Email"])],
+      ["University", getField(data, ["University"])],
+      ["Faculty", getField(data, ["Faculty"])],
+      ["Academic Year", getField(data, ["Academic Year"])]
+    ];
+
+    document.getElementById("personDetails").innerHTML =
+      details.map(item =>
+        "<p><b>" + escapeHTML(item[0]) + ":</b> " +
+        escapeHTML(String(item[1] || "-")) + "</p>"
+      ).join("");
+
+    document.getElementById("personBox").classList.remove("hidden");
+
+    showMessage("Participant found. Confirm attendance when ready.");
+
+  } catch (error) {
+    showMessage("Search error: " + error.message);
   }
 }
 function openScanner() {
